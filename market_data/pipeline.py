@@ -123,21 +123,29 @@ class DataPipeline:
         n_history = mcfg["n_history"]
         n_prompt = mcfg["n_prompt"]
         total_bars = n_history + n_prompt
+        # Extra lookback so the formatter can build lagged self-context windows
+        from forecaster.input_formatter import required_bars
+        lookback_bars = required_bars(
+            n_history, n_prompt,
+            n_context=int(mcfg.get("n_context", 16)) - int(mcfg.get("n_heldout", 4)),
+            context_stride=mcfg.get("context_stride"),
+            context_mode=mcfg.get("context_mode", "lagged"),
+        )
 
         inst_cfg = self.config["instruments"][instrument]
 
         # Fetch target instrument (rate-limited)
         # Use yfinance_ticker if configured (e.g. "BTC-USD" for Hyperliquid "BTC")
         ticker = inst_cfg.get("yfinance_ticker", instrument)
-        heldout_df = _rate_limited_fetch(ticker, bars=total_bars, interval=interval)
+        heldout_df = _rate_limited_fetch(ticker, bars=lookback_bars, interval=interval)
 
         # Fetch context assets
         context_dfs = {}
         for asset in inst_cfg["context_assets"]:
             try:
-                df = self._fetch_cached(asset, total_bars, interval)
+                df = self._fetch_cached(asset, lookback_bars, interval)
                 if len(df) >= total_bars:
-                    context_dfs[asset] = df.tail(total_bars)
+                    context_dfs[asset] = df.tail(lookback_bars)
                 else:
                     logger.warning(
                         "Context asset %s returned only %d bars (need %d), skipping",
@@ -147,7 +155,7 @@ class DataPipeline:
                 logger.warning("Failed to fetch context asset %s: %s", asset, e)
 
         return {
-            "heldout_df": heldout_df.tail(total_bars),
+            "heldout_df": heldout_df.tail(lookback_bars),
             "context_dfs": context_dfs,
             "n_history": n_history,
             "n_prompt": n_prompt,

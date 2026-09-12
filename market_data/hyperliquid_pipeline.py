@@ -57,6 +57,14 @@ class HyperliquidPipeline:
         n_history = mcfg["n_history"]
         n_prompt = mcfg["n_prompt"]
         total_bars = n_history + n_prompt
+        # Extra lookback so the formatter can build lagged self-context windows
+        from forecaster.input_formatter import required_bars
+        lookback_bars = required_bars(
+            n_history, n_prompt,
+            n_context=int(mcfg.get("n_context", 16)) - int(mcfg.get("n_heldout", 4)),
+            context_stride=mcfg.get("context_stride"),
+            context_mode=mcfg.get("context_mode", "lagged"),
+        )
 
         inst_cfg = self.config["instruments"].get(instrument, {})
 
@@ -64,7 +72,7 @@ class HyperliquidPipeline:
         heldout_df = self._hl_data.get_candles(
             symbol=instrument,
             interval=interval,
-            limit=total_bars,
+            limit=lookback_bars,
         )
 
         if heldout_df is None or len(heldout_df) < total_bars:
@@ -77,15 +85,15 @@ class HyperliquidPipeline:
                 total_bars,
                 yf_ticker,
             )
-            heldout_df = fetch_ohlcv(yf_ticker, bars=total_bars, interval=interval)
+            heldout_df = fetch_ohlcv(yf_ticker, bars=lookback_bars, interval=interval)
 
         # Fetch context assets (VIX, etc.) from yfinance with caching
         context_dfs = {}
         for asset in inst_cfg.get("context_assets", ["^VIX"]):
             try:
-                df = self._fetch_context_cached(asset, total_bars, interval)
+                df = self._fetch_context_cached(asset, lookback_bars, interval)
                 if df is not None and len(df) >= total_bars:
-                    context_dfs[asset] = df.tail(total_bars)
+                    context_dfs[asset] = df.tail(lookback_bars)
                 else:
                     logger.warning(
                         "Context asset %s returned only %d bars (need %d), skipping",
@@ -101,7 +109,7 @@ class HyperliquidPipeline:
         open_interest = self._pair_scanner.get_open_interest(instrument)
 
         return {
-            "heldout_df": heldout_df.tail(total_bars),
+            "heldout_df": heldout_df.tail(lookback_bars),
             "context_dfs": context_dfs,
             "n_history": n_history,
             "n_prompt": n_prompt,

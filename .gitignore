@@ -45,3 +45,21 @@ deployments/
 frontend/.next/
 frontend/node_modules/
 frontend/out/
+
+# ---- edge-hunt research data -------------------------------------------------
+# 1.8 GB of downloaded market data (Binance, Polymarket, unlocks). All of it is
+# re-fetchable by the scripts in research/edge_hunt/, none of it is authored
+# here, and single files run past GitHub's 100 MB limit. The code and the
+# write-ups are the durable part — those stay tracked.
+research/edge_hunt/data/
+*.parquet
+*.zip
+*.out
+
+# editor/rotation backups
+*.bak
+*.bak_*
+*.log
+*.pid
+__pycache__/
+*.pyc

@@ -1,0 +1,239 @@
+{
+ "baseline": {
+  "n": 676,
+  "net": 18004.66056776422,
+  "gross": 19347.27436887064,
+  "fees": 1342.6138011064186,
+  "pf": 1.2636618780690325,
+  "wr": 0.6612426035502958,
+  "avg_win": 193.04606693395738,
+  "avg_loss": -298.1962067760469,
+  "folds": [
+   18004.66056776422
+  ],
+  "fold_n": [
+   676
+  ],
+  "fold_consistent": true,
+  "sharpe": 1.8874020477920175,
+  "max_dd": 11329.349695017836,
+  "avg_hold_min": 10080.0,
+  "net_bps": 266.341132659234,
+  "total_notional": 676000.0
+ },
+ "L1": {
+  "n": 817,
+  "median_h": 1.0,
+  "share_within_9h": 0.7184822521419829,
+  "share_negative": 0.3525091799265606,
+  "early_funding_stamp": 227,
+  "suspect_t0": [
+   "ALLOUSDT",
+   "APRUSDT",
+   "BARDUSDT",
+   "CLOUSDT",
+   "EDENUSDT",
+   "ERAUSDT",
+   "EULUSDT",
+   "HEMIUSDT",
+   "HOLOUSDT",
+   "JCTUSDT",
+   "KGENUSDT",
+   "LIGHTUSDT",
+   "MINAUSDT",
+   "MITOUSDT",
+   "NAORISUSDT",
+   "ONUSDT",
+   "OPENUSDT",
+   "PTBUSDT",
+   "PUMPBTCUSDT",
+   "RECALLUSDT",
+   "RVVUSDT",
+   "TREEUSDT",
+   "TRUTHUSDT",
+   "TURTLEUSDT",
+   "VFYUSDT",
+   "XAGUSDT",
+   "ZKCUSDT"
+  ],
+  "ex any-early-funding": {
+   "n": 494,
+   "net": 10927.008291945007,
+   "gross": 11909.429446195114,
+   "fees": 982.4211542501085,
+   "pf": 1.1865266692758107,
+   "wr": 0.6821862348178138,
+   "avg_win": 206.25664096153415,
+   "avg_loss": -373.1304440260637,
+   "folds": [
+    10927.008291945007
+   ],
+   "fold_n": [
+    494
+   ],
+   "fold_consistent": true,
+   "sharpe": 1.2006351969281854,
+   "max_dd": 10810.478149085797,
+   "avg_hold_min": 10080.0,
+   "net_bps": 221.19449983694346,
+   "total_notional": 494000.0
+  },
+  "ex non-placeholder-early": {
+   "n": 649,
+   "net": 16039.982462909324,
+   "gross": 17329.804344605207,
+   "fees": 1289.8218816958852,
+   "pf": 1.243430287665611,
+   "wr": 0.6594761171032357,
+   "avg_win": 191.42865571846704,
+   "avg_loss": -298.1515030977129,
+   "folds": [
+    16039.982462909324
+   ],
+   "fold_n": [
+    649
+   ],
+   "fold_consistent": true,
+   "sharpe": 1.7059911418224203,
+   "max_dd": 10759.453051399187,
+   "avg_hold_min": 10080.0,
+   "net_bps": 247.1491904916691,
+   "total_notional": 649000.0
+  },
+  "early_only": {
+   "n": 182,
+   "net": 7077.652275819212,
+   "gross": 7437.844922675525,
+   "fees": 360.19264685631003,
+   "pf": 1.7292450200796976,
+   "wr": 0.6043956043956044,
+   "avg_win": 152.57367195856307,
+   "avg_loss": -134.79793943920455,
+   "folds": [
+    7077.652275819212
+   ],
+   "fold_n": [
+    182
+   ],
+   "fold_consistent": true,
+   "sharpe": 2.469803971677294,
+   "max_dd": 1803.8744654990678,
+   "avg_hold_min": 10080.0,
+   "net_bps": 388.8819931768798,
+   "total_notional": 182000.0
+  },
+  "s3_spotcheck": {
+   "n": 40,
+   "ok": 40,
+   "mismatch": 0,
+   "errors": 0,
+   "examples": []
+  }
+ },
+ "L2": {
+  "hour_top3_share": 0.3829268292682927,
+  "bar0_is_max_share": 0.19146341463414634,
+  "day1_vol_share": 0.26327441947103936
+ },
+ "L3": {
+  "delisted since": {
+   "n": 9,
+   "net": 1262.6888135415065,
+   "gross": 1279.7142738556563,
+   "fees": 17.02546031414977,
+   "pf": Infinity,
+   "wr": 1.0,
+   "avg_win": 140.2987570601674,
+   "avg_loss": 0.0,
+   "folds": [
+    1262.6888135415065
+   ],
+   "fold_n": [
+    9
+   ],
+   "fold_consistent": true,
+   "sharpe": 2.714283900232009,
+   "max_dd": 0.0,
+   "avg_hold_min": 10080.0,
+   "net_bps": 1402.987570601674,
+   "total_notional": 9000.0
+  },
+  "still listed": {
+   "n": 667,
+   "net": 16741.971754222715,
+   "gross": 18067.560095014982,
+   "fees": 1325.5883407922688,
+   "pf": 1.245170948859782,
+   "wr": 0.656671664167916,
+   "avg_win": 194.12991576698045,
+   "avg_loss": -298.1962067760469,
+   "folds": [
+    16741.971754222715
+   ],
+   "fold_n": [
+    667
+   ],
+   "fold_consistent": true,
+   "sharpe": 1.758022189938241,
+   "max_dd": 11329.349695017838,
+   "avg_hold_min": 10080.0,
+   "net_bps": 251.00407427620263,
+   "total_notional": 667000.0
+  }
+ },
+ "L4": {
+  "n_dup_bases": 2,
+  "dedup": {
+   "n": 674,
+   "net": 17667.787572670546,
+   "gross": 19006.462864291163,
+   "fees": 1338.6752916206137,
+   "pf": 1.258728679455105,
+   "wr": 0.6602373887240356,
+   "avg_win": 193.15667174019163,
+   "avg_loss": -298.19620677604684,
+   "folds": [
+    17667.787572670546
+   ],
+   "fold_n": [
+    674
+   ],
+   "fold_consistent": true,
+   "sharpe": 1.852811327169835,
+   "max_dd": 11362.208402858054,
+   "avg_hold_min": 10080.0,
+   "net_bps": 262.1333467755274,
+   "total_notional": 674000.0
+  },
+  "examples": {
+   "BOB": [
+    "1000000BOBUSDT",
+    "BOBUSDT"
+   ],
+   "CAT": [
+    "1000CATUSDT",
+    "CATUSDT"
+   ]
+  }
+ },
+ "L5": {
+  "traded": 676,
+  "too_short": 6
+ },
+ "L6": {},
+ "L7": {
+  "excluded": [
+   "ADAUSDT",
+   "BCHUSDT",
+   "BTCUSDT",
+   "EOSUSDT",
+   "ETCUSDT",
+   "ETHUSDT",
+   "LINKUSDT",
+   "LTCUSDT",
+   "TRXUSDT",
+   "XLMUSDT",
+   "XRPUSDT"
+  ]
+ }
+}

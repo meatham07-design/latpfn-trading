@@ -1,0 +1,112 @@
+{
+ "key": "crypto_seasonality",
+ "best_params": {
+  "rule": "weekend",
+  "dir": "short"
+ },
+ "oos_n": 138,
+ "oos_net": -2979.59,
+ "oos_pf": 0.771,
+ "oos_wr": 0.326,
+ "oos_sharpe": -0.975,
+ "oos_folds": [
+  -4671.33,
+  1691.74
+ ],
+ "insample_best_net": 471.67236881051275,
+ "shuffle_pct": 0.54,
+ "neighbors_ok": false,
+ "verdict": "none",
+ "criteria": {
+  "net_pos": false,
+  "pf": false,
+  "n": true,
+  "folds": false,
+  "shuffle": false,
+  "neighbors": false
+ },
+ "zero_fee_oos_net": -1736.81,
+ "maker_oos_net": -2151.07,
+ "hl_secondary": {
+  "best": {
+   "rule": "hours",
+   "k": 4,
+   "dir": "both"
+  },
+  "oos_n": 3336,
+  "oos_net": -28693.08,
+  "oos_pf": 0.583
+ },
+ "liquid": {
+  "n": 34,
+  "pos": 23,
+  "net": -1852.6000000000015
+ },
+ "illiquid": {
+  "n": 16,
+  "pos": 9,
+  "net": 3538.099999999999
+ },
+ "families": [
+  {
+   "family": "hours",
+   "best": "dir=long_k=1_rule=hours",
+   "oos_n": 970,
+   "oos_net": -9165.4,
+   "oos_pf": 0.54,
+   "oos_net_bps": -9.45,
+   "F2": -5135.8,
+   "F3": -4029.6
+  },
+  {
+   "family": "weekend",
+   "best": "dir=short_rule=weekend",
+   "oos_n": 138,
+   "oos_net": -2979.6,
+   "oos_pf": 0.77,
+   "oos_net_bps": -21.59,
+   "F2": -4671.3,
+   "F3": 1691.7
+  },
+  {
+   "family": "us_sess",
+   "best": "dir=short_rule=us_sess",
+   "oos_n": 698,
+   "oos_net": -1565.8,
+   "oos_pf": 0.97,
+   "oos_net_bps": -2.24,
+   "F2": 2385.4,
+   "F3": -3951.2
+  },
+  {
+   "family": "asia_sess",
+   "best": "dir=long_rule=asia_sess",
+   "oos_n": 693,
+   "oos_net": -6371.6,
+   "oos_pf": 0.84,
+   "oos_net_bps": -9.19,
+   "F2": -1771.7,
+   "F3": -4599.9
+  },
+  {
+   "family": "fund_pre",
+   "best": "dir=long_rule=fund_pre",
+   "oos_n": 2908,
+   "oos_net": -27573.5,
+   "oos_pf": 0.61,
+   "oos_net_bps": -9.48,
+   "F2": -17528.4,
+   "F3": -10045.1
+  },
+  {
+   "family": "fund_post",
+   "best": "dir=short_rule=fund_post",
+   "oos_n": 2910,
+   "oos_net": -26163.5,
+   "oos_pf": 0.62,
+   "oos_net_bps": -8.99,
+   "F2": -11029.2,
+   "F3": -15134.2
+  }
+ ]
+}

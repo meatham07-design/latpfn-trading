@@ -144,7 +144,15 @@ class ForecastPoster:
             logger.debug("Skipping on-chain post: missing instrument/direction")
             return None
 
-        return self.post(instrument, direction, confidence, int(timestamp) if timestamp else 0)
+        # Normalise timestamp → epoch seconds (signals carry datetime objects)
+        if hasattr(timestamp, "timestamp"):
+            timestamp = timestamp.timestamp()
+        try:
+            ts = int(timestamp) if timestamp else 0
+        except (TypeError, ValueError):
+            ts = 0
+
+        return self.post(instrument, direction, confidence, ts)
 
     def get_forecast_count(self) -> int:
         """Get the current number of forecasts posted on-chain."""

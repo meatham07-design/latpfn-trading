@@ -1096,8 +1096,9 @@ class TradingSystem:
         if signal is None:
             return prediction, None
 
-        # Post forecast hash on-chain (non-blocking — failures are logged, not raised)
-        if self._forecast_poster:
+        # Post forecast hash on-chain (non-blocking — failures are logged, not raised).
+        # Skipped in dry-run: it sends a real Base-mainnet tx and spends gas.
+        if self._forecast_poster and not self.config.get("execution", {}).get("dry_run"):
             self._forecast_poster.post_signal(signal)
 
         # Return as a candidate for ranking

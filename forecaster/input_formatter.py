@@ -17,10 +17,16 @@ Heldout (target series — what we want to forecast):
 
 Strategy
 ────────
-- The 4 heldout series are the target instrument's Open, High, Low, Close.
-- Context series come from correlated assets' Close prices.
-- If fewer than ``n_ctx`` context assets are available, we duplicate
-  existing ones (the model needs dim > 1 in every non-feature axis).
+- The 4 heldout series are the target instrument's Open, High, Low, Close,
+  using the LAST ``n_history`` bars. The prompt window is the true, unknown
+  future (next ``n_prompt`` bars) — this is what the model forecasts.
+- Context series are COMPLETE ``n_history + n_prompt`` windows that ended in
+  the past (lagged windows of the target itself and of related assets), so
+  their "prompt" segment is genuinely known. This mirrors LaT-PFN's own
+  real-data evals, which use prior years of the same series as context.
+- ``context_mode="legacy"`` reproduces the pre-2026-08-26 behaviour (target's
+  last 60 bars discarded and "forecast"; contemporaneous context) for A/B
+  comparison only. It does not forecast forward and must not be traded.
 """
 
 from typing import Dict, List
@@ -35,69 +41,128 @@ from market_data.normalizer import normalize_values, normalize_time, NormStats
 HELDOUT_COLS = ["Open", "High", "Low", "Close"]
 
 
+def required_bars(n_history: int, n_prompt: int, n_context: int = 12,
+                  context_stride: int | None = None, context_mode: str = "lagged") -> int:
+    """Bars of target history needed to build a full self-context set."""
+    total = n_history + n_prompt
+    if context_mode == "legacy":
+        return total
+    stride = context_stride or n_prompt
+    return total + max(0, n_context - 1) * stride
+
+
+def _lagged_windows(values: np.ndarray, total: int, stride: int, max_windows: int) -> List[np.ndarray]:
+    """Complete ``total``-length windows ending at t, t-stride, t-2*stride, ..."""
+    out: List[np.ndarray] = []
+    end = len(values)
+    while end >= total and len(out) < max_windows:
+        out.append(values[end - total:end].astype(np.float32))
+        end -= stride
+    return out
+
+
 def format_inputs(
     heldout_df: pd.DataFrame,
     context_dfs: Dict[str, pd.DataFrame],
     n_history: int = 180,
     n_prompt: int = 60,
     min_context: int = 2,
+    n_context: int = 12,
+    context_stride: int | None = None,
+    context_mode: str = "lagged",
 ) -> tuple[dict, NormStats]:
     """
     Build the 7 tensors required by ``LaTPFNV4.create_forecast()``.
 
     Args:
-        heldout_df:  Target instrument OHLCV, length >= n_history + n_prompt.
-        context_dfs: {symbol: OHLCV DataFrame} for context assets.
+        heldout_df:  Target instrument OHLCV. Needs >= n_history rows for the
+                     query; more rows (see ``required_bars``) give more lagged
+                     self-context windows.
+        context_dfs: {symbol: OHLCV DataFrame} for related assets (Close used).
         n_history:   History length (default 180).
         n_prompt:    Forecast horizon (default 60).
         min_context: Minimum context series (model needs dim > 1).
+        n_context:   Target number of context series (train config: 16 - 4 heldout).
+        context_stride: Bars between successive lagged windows (default n_prompt).
+        context_mode: "lagged" (forecast forward) | "legacy" (old misaligned).
 
     Returns:
         (tensors_dict, close_stats)
-        tensors_dict has keys matching create_forecast argument names.
-        close_stats is the NormStats for the Close column (for denormalization).
     """
     total = n_history + n_prompt
+    stride = context_stride or n_prompt
 
-    # ── Time axis (shared by all series) ──────────────────────────────
-    T_full = normalize_time(total)  # shape (total,)
+    T_full = normalize_time(total)
     T_hist = T_full[:n_history]
     T_prom = T_full[n_history:]
 
-    # ── Heldout series (O, H, L, C of target instrument) ─────────────
+    # ── Heldout query (O, H, L, C of target) ──────────────────────────
     heldout_arrays = []
     close_stats = None
     for col in HELDOUT_COLS:
-        vals = heldout_df[col].values[-total:].astype(np.float32)
-        v_norm, stats = normalize_values(vals)
+        if context_mode == "legacy":
+            # Old behaviour: window of `total`, first n_history used, last
+            # n_prompt bars discarded and treated as the "future".
+            vals = heldout_df[col].values[-total:].astype(np.float32)
+            v_norm, stats = normalize_values(vals)
+            v_norm = v_norm[:n_history]
+        else:
+            vals = heldout_df[col].values[-n_history:].astype(np.float32)
+            if len(vals) < n_history:
+                raise ValueError(
+                    f"heldout needs >= {n_history} bars, got {len(vals)}"
+                )
+            v_norm, stats = normalize_values(vals)
         heldout_arrays.append(v_norm)
         if col == "Close":
             close_stats = stats
 
-    # Split heldout into history / prompt
-    V_heldout_hist = np.stack([a[:n_history] for a in heldout_arrays])  # (4, n_history)
-    # (no V_heldout_prompt — that's what the model predicts)
+    V_heldout_hist = np.stack(heldout_arrays)  # (4, n_history)
+    T_heldout_hist = np.tile(T_hist, (len(HELDOUT_COLS), 1))
+    T_heldout_prom = np.tile(T_prom, (len(HELDOUT_COLS), 1))
 
-    T_heldout_hist = np.tile(T_hist, (len(HELDOUT_COLS), 1))  # (4, n_history)
-    T_heldout_prom = np.tile(T_prom, (len(HELDOUT_COLS), 1))  # (4, n_prompt)
-
-    # ── Context series (Close prices of correlated assets) ────────────
+    # ── Context series ────────────────────────────────────────────────
     ctx_history_V: List[np.ndarray] = []
     ctx_prompt_V: List[np.ndarray] = []
 
-    for symbol, df in context_dfs.items():
-        close = df["Close"].values[-total:].astype(np.float32)
-        if len(close) < total:
-            continue
-        v_norm, _ = normalize_values(close)
+    def _add(window: np.ndarray):
+        v_norm, _ = normalize_values(window)
         ctx_history_V.append(v_norm[:n_history])
         ctx_prompt_V.append(v_norm[n_history:])
 
-    # Pad / duplicate to have at least min_context series
+    if context_mode == "legacy":
+        for symbol, df in context_dfs.items():
+            close = df["Close"].values[-total:].astype(np.float32)
+            if len(close) < total:
+                continue
+            _add(close)
+    else:
+        # Self-context first: the target's own completed windows, most recent
+        # first. These end at the query's last bar, so their prompt segment is
+        # fully known (it is the last n_prompt bars of the query's history).
+        self_close = heldout_df["Close"].values.astype(np.float32)
+        self_windows = _lagged_windows(self_close, total, stride, n_context)
+        # Related-asset windows, round-robin by lag so the most recent window
+        # of every asset comes before the second-most-recent of any.
+        asset_windows = []
+        for symbol, df in context_dfs.items():
+            close = df["Close"].values.astype(np.float32)
+            asset_windows.append(_lagged_windows(close, total, stride, n_context))
+        # Interleave: self[0], asset windows lag-0, self[1], asset windows lag-1 ...
+        max_lag = max([len(self_windows)] + [len(w) for w in asset_windows] + [0])
+        for k in range(max_lag):
+            if k < len(self_windows):
+                _add(self_windows[k])
+            for w in asset_windows:
+                if k < len(w):
+                    _add(w[k])
+        ctx_history_V = ctx_history_V[:n_context]
+        ctx_prompt_V = ctx_prompt_V[:n_context]
+
     if not ctx_history_V:
         raise ValueError(
-            "No valid context series available. Need at least 1 context asset "
-            f"with {total} bars. Check context_assets config and data availability."
+            "No valid context series available. Need at least 1 complete "
+            f"{total}-bar window from the target or a context asset."
         )
     while len(ctx_history_V) < min_context:
         ctx_history_V.append(ctx_history_V[0])

@@ -1,0 +1,26 @@
+{
+ "baseline": 1214.1711683227484,
+ "baseline_n": 1754,
+ "realistic": 139.90681901016444,
+ "realistic_n": 1736,
+ "realistic_folds": [
+  0.0,
+  1026.6989232937449,
+  -886.7921042835808
+ ],
+ "realistic_pf": 1.0085042592312654,
+ "realistic5": -154.3477578659997,
+ "liquid_realistic": 433.46457292201,
+ "singles": {
+  "fill_m1": 936.4,
+  "fill_m2": 897.4,
+  "fill_m5": 588.8,
+  "fill_m10": 44.6,
+  "gap_taker": 938.8,
+  "slip1": 1038.5,
+  "slip2": 862.9,
+  "slip4": 511.6,
+  "spread": 1056.2,
+  "funding": 1230.8
+ }
+}

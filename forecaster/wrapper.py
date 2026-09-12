@@ -43,6 +43,19 @@ class LaTPFNPredictor:
         self.device = _resolve_device(mcfg["device"])
         self.n_history = mcfg["n_history"]
         self.n_prompt = mcfg["n_prompt"]
+        # Context construction (2026-08-26): "lagged" = forecast forward using
+        # completed past windows as context; "legacy" = old misaligned mode.
+        self.context_mode = mcfg.get("context_mode", "lagged")
+        # direction_basis: "current_price" (forecast end vs last close) or
+        # "backcast" (forecast end vs model's own end-of-history level — removes
+        # the model's level-smoothing offset).
+        self.direction_basis = mcfg.get("direction_basis", "current_price")
+        self.n_context_series = int(mcfg.get("n_context", 16)) - int(mcfg.get("n_heldout", 4))
+        self.context_stride = mcfg.get("context_stride") or self.n_prompt
+        if self.context_mode == "legacy":
+            logger.warning("context_mode=legacy — model does NOT forecast forward (A/B baseline only)")
+        else:
+            logger.info("context_mode=%s  n_context=%d  stride=%d", self.context_mode, self.n_context_series, self.context_stride)
 
         # Add repo to path so we can import LaT-PFN internals
         self.repo_path = str(Path(mcfg["lat_pfn_repo"]).resolve())
@@ -155,6 +168,9 @@ class LaTPFNPredictor:
             context_dfs,
             n_history=self.n_history,
             n_prompt=self.n_prompt,
+            n_context=self.n_context_series,
+            context_stride=self.context_stride,
+            context_mode=self.context_mode,
         )
 
         # Move tensors to device; duplicate batch dim (model requires batch > 1)
@@ -178,6 +194,17 @@ class LaTPFNPredictor:
         forecast = processed["forecast_prices"]
         uncertainty = processed["uncertainty"]
 
+        # Model's own reconstruction of the last history bar (level reference)
+        backcast_last = None
+        if "backcast" in raw_output:
+            try:
+                bc = process_forecast(
+                    {"forecast": raw_output["backcast"]}, close_stats, heldout_idx=3
+                )["forecast_prices"]
+                backcast_last = float(bc[-1])
+            except Exception:  # pragma: no cover — diagnostics only
+                backcast_last = None
+
         # Validate model output — NaN/Inf would corrupt all downstream logic
         if np.any(np.isnan(forecast)) or np.any(np.isinf(forecast)):
             logger.error("Model produced NaN/Inf in forecast — returning neutral")
@@ -197,8 +224,11 @@ class LaTPFNPredictor:
         current_price = float(heldout_df["Close"].iloc[-1])
 
         # Direction and confidence
+        ref_price = current_price
+        if self.direction_basis == "backcast" and backcast_last is not None:
+            ref_price = backcast_last
         direction, confidence = self._analyze_forecast(
-            forecast, uncertainty, current_price
+            forecast, uncertainty, ref_price
         )
 
         # Regime detection from forecast characteristics
@@ -211,6 +241,7 @@ class LaTPFNPredictor:
             "confidence": confidence,
             "regime": regime,
             "current_price": current_price,
+            "backcast_last": backcast_last,
             "stats": close_stats,
         }
 

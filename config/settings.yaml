@@ -14,13 +14,16 @@ schedule:
   flatten_eod: true    # Close all positions end of day (prop firm safe)
 
 model:
-  device: auto         # auto | cuda | mps | cpu
+  device: cpu          # auto | cuda | mps | cpu  (mps crashes in MPSGraph on M4 / macOS 15.3 — 2026-08-26)
   weights_path: ./models/lat_pfn_checkpoint.ckpt
   lat_pfn_repo: ./Lat-PFN
   n_context: 16
   n_heldout: 4
   n_history: 180
   n_prompt: 60
+  context_mode: lagged   # lagged = forecast forward using completed past windows as context (fixed 2026-08-26)
+                         # legacy = old misaligned mode (discarded last 60 bars, no forward forecast) — A/B only
+  context_stride: 60     # bars between lagged self-context windows
   n_bins: 100
   bin_range_min: -3.5
   bin_range_max: 3.5

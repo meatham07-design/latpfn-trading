@@ -45,6 +45,17 @@ def run_backtest(
     n_history = config["model"]["n_history"]
     n_prompt = config["model"]["n_prompt"]
     window = n_history + n_prompt
+    mcfg = config["model"]
+    context_mode = mcfg.get("context_mode", "lagged")
+    if mcfg.get("direction_basis", "current_price") == "backcast":
+        context_mode = context_mode + "-bc"
+    from forecaster.input_formatter import required_bars
+    lookback = required_bars(
+        n_history, n_prompt,
+        n_context=int(mcfg.get("n_context", 16)) - int(mcfg.get("n_heldout", 4)),
+        context_stride=mcfg.get("context_stride"),
+        context_mode=context_mode,
+    )
 
     strategy_mode = config.get("strategy", {}).get("mode", "standard")
 
@@ -53,6 +64,7 @@ def run_backtest(
     print(f"Strategy: {strategy_mode.upper()}")
     print(f"Period: {days} days  |  Interval: {interval}")
     print(f"Window: {n_history} history + {n_prompt} forecast = {window} bars")
+    print(f"Context mode: {context_mode}  (lookback {lookback} bars)")
     print(f"Account: ${account_equity:,.2f}")
     print(f"{'='*60}\n")
 
@@ -93,14 +105,15 @@ def run_backtest(
         if slice_end > len(heldout_df):
             break
 
-        # Current data window
-        window_df = heldout_df.iloc[i:slice_end]
+        # Current data window — everything the model may see ends at slice_end
+        # (exclusive). Forecast/eval covers slice_end : slice_end + n_prompt.
+        window_df = heldout_df.iloc[max(0, slice_end - lookback):slice_end]
 
         # Slice context to same time range
         ctx_slice = {}
         for sym, df in context_dfs.items():
             if len(df) > slice_end:
-                ctx_slice[sym] = df.iloc[i:slice_end]
+                ctx_slice[sym] = df.iloc[max(0, slice_end - lookback):slice_end]
 
         if len(ctx_slice) < 2:
             continue
@@ -170,7 +183,7 @@ def run_backtest(
 
     # Save results to reports/ if requested
     if save_results and trades:
-        _save_results(trades, account_equity, instrument, days, slippage)
+        _save_results(trades, account_equity, instrument, days, slippage, context_mode)
 
 
 def _per_tier_metrics(trades: list) -> dict:
@@ -263,13 +276,13 @@ def _max_drawdown(pnls: list) -> float:
     return float(np.max(drawdown)) if len(drawdown) > 0 else 0.0
 
 
-def _save_results(trades: list, account_equity: float, instrument: str, days: int, slippage: float):
+def _save_results(trades: list, account_equity: float, instrument: str, days: int, slippage: float, context_mode: str = "lagged"):
     """Save backtest results to reports/ directory as JSON."""
     reports_dir = Path(__file__).parent.parent / "reports"
     reports_dir.mkdir(exist_ok=True)
 
     date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"backtest_{instrument}_{date_str}.json"
+    filename = f"backtest_{instrument}_{context_mode}_{date_str}.json"
 
     pnls = [t["pnl"] for t in trades]
     wins = [p for p in pnls if p > 0]
@@ -282,6 +295,7 @@ def _save_results(trades: list, account_equity: float, instrument: str, days: in
         "instrument": instrument,
         "days": days,
         "slippage": slippage,
+        "context_mode": context_mode,
         "account_equity": account_equity,
         "generated_at": datetime.now().isoformat(),
         "summary": {
@@ -318,6 +332,10 @@ def main():
     parser.add_argument("--mode", type=str, choices=["standard", "scalp"], default=None,
                         help="Strategy mode override (default: use config)")
     parser.add_argument("--config", type=str, default=None, help="Config file path")
+    parser.add_argument("--context-mode", type=str, choices=["lagged", "legacy"], default=None,
+                        help="Override model.context_mode (legacy = old misaligned mode, baseline only)")
+    parser.add_argument("--direction-basis", type=str, choices=["current_price", "backcast"], default=None,
+                        help="Override model.direction_basis")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -329,6 +347,10 @@ def main():
         config["strategy"]["mode"] = args.mode
 
     # Validate instrument exists in config
+    if args.context_mode:
+        config["model"]["context_mode"] = args.context_mode
+    if args.direction_basis:
+        config["model"]["direction_basis"] = args.direction_basis
     if args.instrument not in config["instruments"]:
         valid = ", ".join(config["instruments"].keys())
         print(f"Error: '{args.instrument}' not in config. Valid instruments: {valid}")
